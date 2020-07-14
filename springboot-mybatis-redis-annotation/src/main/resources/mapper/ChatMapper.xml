@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="org.spring.springboot.dao.ChatDao">
+	<select id="getChatList" resultType="com.ruiyun.im.common.core.RYIMChatListBeanEntity">
+		SELECT
+		m.to_id myUserCID,
+		m.from_id toUserCID,
+		( SELECT COUNT( 1 ) FROM im_chat_log WHERE to_id = #{cid} AND from_id = m.from_id AND is_read = 0 ) offlineMsgCount,
+		(
+		SELECT
+		MAX( msg_timestamp )
+		FROM
+		im_chat_log
+		WHERE
+		to_id = m.to_id
+		AND from_id = m.from_id
+		OR to_id = m.from_id
+		AND from_id = m.to_id
+		) lastMsgTimestamp,
+		(
+		SELECT
+		data_content
+		FROM
+		im_chat_log
+		WHERE
+		to_id = m.to_id
+		AND from_id = m.from_id
+		OR to_id = m.from_id
+		AND from_id = m.to_id
+		ORDER BY
+		msg_timestamp DESC
+		LIMIT 0,
+		1
+		) lastMsgContent
+		FROM
+		( SELECT to_id, from_id, extra FROM im_chat_log GROUP BY from_id, to_id HAVING to_id = #{cid} ) m UNION
+		SELECT
+		p.from_id myUserCID,
+		p.to_id toUserCID,
+		0 offlineMsgCount,
+		( SELECT msg_timestamp FROM im_chat_log WHERE to_id = p.to_id AND from_id = p.from_id ORDER BY msg_timestamp DESC LIMIT 0, 1 ) lastMsgTimestamp,
+		( SELECT data_content FROM im_chat_log WHERE to_id = p.to_id AND from_id = p.from_id ORDER BY msg_timestamp DESC LIMIT 0, 1 ) lastMsgContent
+		FROM
+		( SELECT to_id, from_id, extra FROM im_chat_log GROUP BY to_id, from_id HAVING from_id = #{cid} ) p
+		WHERE
+		p.to_id NOT IN ( SELECT from_id FROM ( SELECT from_id, to_id FROM im_chat_log GROUP BY from_id, to_id HAVING to_id = #{cid} ) r )
+	</select>
+
+</mapper>
